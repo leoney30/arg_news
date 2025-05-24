@@ -79,7 +79,7 @@ def send_email(news_df, config):
     msg = MIMEMultipart()
     msg['From'] = sender_email
     msg['To'] = receiver_email
-    msg['Subject'] = f"梅西新闻更新 - {datetime.now().strftime('%Y-%m-%d')}"
+    msg['Subject'] = f"新闻更新 - {datetime.now().strftime('%Y-%m-%d')}"
     
     html_body = """
     <html>
@@ -94,7 +94,7 @@ def send_email(news_df, config):
         </style>
       </head>
       <body>
-        <p>以下是近两天的梅西相关新闻：</p>
+        <p> </p>
     """ # (移除了第一个<hr>，因为每个项目后都有)
     
     for _, row in news_df.iterrows():
@@ -107,7 +107,7 @@ def send_email(news_df, config):
         html_body += f"""
         <div class="news-item">
           <p><a href="{link}" target="_blank">{escaped_title}</a></p>
-          <p class="date">日期：{date_str}</p>
+         
         </div>
         """ # (移除了项目内的<hr>，因为class="news-item"已有border-bottom)
 
