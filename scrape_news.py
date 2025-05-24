@@ -1,9 +1,10 @@
 import requests
 from bs4 import BeautifulSoup
-import csv
+import csv # 你可能不再直接使用 csv 模块了，因为 pandas 处理了 CSV
 import re
-import pandas as pd # 引入 pandas 用于更方便地处理CSV和状态列
-import os # 引入 os 用于检查文件是否存在
+import pandas as pd
+import os
+from datetime import datetime, timedelta
 
 # --- 常量定义 ---
 DEFAULT_HEADERS = {
