@@ -1,70 +1,69 @@
-name: 定时新闻抓取与提交 # 工作流名称
+name: 定时新闻抓取、发送邮件并更新状态
 
 on:
   schedule:
-    # 每天 UTC 时间 02:00 运行 (北京时间上午10点)。可根据需要调整。
-    # cron 表达式: 分 时 日 月 周
-    # 使用 https://crontab.guru/ 辅助生成
-    # 注意：GitHub Actions 的 schedule 使用 UTC 时间
-    - cron: '0 2 * * *'
-  workflow_dispatch: # 允许手动从 Actions 标签页触发，方便测试
+    - cron: '0 3 * * *' # 假设每天 UTC 03:00 运行
+  workflow_dispatch:
 
 jobs:
-  scrape-and-commit:
-    name: 抓取新闻并提交CSV
-    runs-on: ubuntu-latest # 在最新的 Ubuntu 运行器上执行
-
-    # 授予 GITHUB_TOKEN 写入仓库的权限
+  scrape-email-update:
+    name: 抓取新闻、发送邮件并更新状态
+    runs-on: ubuntu-latest
     permissions:
-      contents: write # 推送更改回仓库所必需
+      contents: write # 需要权限来提交CSV文件的状态更新
 
     steps:
       - name: 迁出代码库
-        uses: actions/checkout@v4 # 检出你的仓库代码
-        # 如果你想在运行前拉取最新的更改以避免潜在的合并冲突
-        # (对于机器人自动提交，通常直接覆盖是可以接受的)
-        # with:
-        #   fetch-depth: 0 # 获取所有分支和标签的完整历史记录
+        uses: actions/checkout@v4
 
       - name: 设置 Python 环境
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10' # 指定你希望使用的 Python 版本 (例如 3.8, 3.9, 3.10, 3.x)
-          cache: 'pip' # 缓存 pip 下载的包，加快后续构建
+          python-version: '3.10' # 或你脚本需要的版本
+          cache: 'pip'
 
-      - name: 安装依赖项
+      - name: 安装 Python 依赖项
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt # 假设依赖项在 requirements.txt 中
+          # 假设你的 requirements.txt 包含 pandas
+          # 如果你的抓取脚本也有依赖，确保它们也在 requirements.txt 中
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            echo "requirements.txt not found, installing pandas manually for email script."
+            pip install pandas # 至少邮件脚本需要pandas
+          fi
+          # 如果抓取脚本依赖也在此安装
+          # pip install requests beautifulsoup4 # 假设是抓取脚本的依赖
 
-      - name: 运行 Python 爬虫脚本
-        run: python zhibo8_scraper.py 
+      - name: 运行新闻抓取脚本 (scrape_news.py)
+        run: python scrape_news.py # 确保路径正确
+        # 这个脚本应该会生成或更新 messi_argentina_news.csv
 
-        # 如果脚本需要环境变量（例如 API 密钥），在此定义:
-        # env:
-        #   API_KEY: ${{ secrets.YOUR_SECRET_NAME }}
+      - name: 运行邮件发送和状态更新脚本 (send_news_email.py)
+        env: # 将 GitHub Secrets 作为环境变量传递给 Python 脚本
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME_SECRET }} # 例如你在Secrets中叫MAIL_USERNAME_SECRET
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD_SECRET }}
+          TO_EMAIL: ${{ secrets.TO_EMAIL_SECRET }}
+          # 如果 SMTP 服务器和端口也想通过 secrets 配置:
+          # SMTP_SERVER_ENV: ${{ secrets.SMTP_SERVER_SECRET_NAME }}
+          # SMTP_PORT_ENV: ${{ secrets.SMTP_PORT_SECRET_NAME }}
+        run: python send_news_email.py # 确保路径正确
 
-      - name: 配置 Git 用户信息
+      - name: 配置 Git 用户信息 (如果CSV状态被更新)
         run: |
           git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions@github.com" # 或者你的机器人专用邮箱
+          git config --global user.email "actions@github.com"
 
-      - name: 提交并推送 CSV 文件
+      - name: 提交并推送更新后的 CSV 文件 (如果状态已更新)
         run: |
-          # 添加生成的 CSV 文件
-          # 确保此文件名与你的 Python 脚本中 output_csv_filename 一致
+          # 检查 messi_argentina_news.csv 是否有更改
+          # (因为 send_news_email.py 可能会修改它)
           git add messi_argentina_news.csv
-
-          # 检查是否有实际更改需要提交
-          # git diff --staged --quiet：如果没有更改，则退出代码为0；如果有更改，则退出代码为1
-          # 如果没有更改，则不执行提交操作
           if ! git diff --staged --quiet; then
-            echo "检测到 messi_argentina_news.csv 文件发生变化，正在提交..."
-            # 你可以使用更动态的提交信息，例如包含日期
-            git commit -m "自动更新：抓取新闻于 $(date +'%Y-%m-%d %H:%M:%S UTC')"
+            echo "检测到 messi_argentina_news.csv (状态更新) 发生变化，正在提交..."
+            git commit -m "自动更新：新闻邮件已发送，状态已更新 $(date +'%Y-%m-%d')"
             git push
           else
-            echo "messi_argentina_news.csv 文件无变化，无需提交。"
+            echo "messi_argentina_news.csv 文件无变化 (可能未发送邮件或无新状态更新)，无需提交。"
           fi
-        # 可选：仅在前一步（脚本执行）成功时运行
-        # if: success()
