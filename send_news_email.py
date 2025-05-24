@@ -5,7 +5,7 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 import os
 import sys
-import html # <--- 正确的导入位置
+import html 
 
 # --- 配置常量 ---
 CSV_FILE = 'messi_argentina_news.csv'
