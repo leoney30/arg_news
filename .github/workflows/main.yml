@@ -2,7 +2,7 @@ name: ⭐⭐⭐定时新闻抓取、发送邮件并更新状态
 
 on:
   schedule:
-    - cron: '0 0 * * *' # 假设每天 UTC 0 0 运行
+    - cron: '0 23 * * *' # 假设每天 UTC 0 0 运行
   workflow_dispatch:
 
 jobs:
